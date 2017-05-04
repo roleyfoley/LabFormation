@@ -1,4 +1,6 @@
-import-module AWSPowerShell
+import-module AWSPowerShell -ErrorAction SilentlyContinue
+import-module AWSPowerShell.netCore -ErrorAction SilentlyContinue
+
 
 $MyPublicIP = (Invoke-RestMethod -Method Get -Uri 'https://api.ipify.org?format=json').IP
 Set-DefaultAWSRegion -Region ap-southeast-2
