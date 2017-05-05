@@ -61,7 +61,7 @@
             "Type" : "AWS::EC2::Subnet",
             "Properties" : {
                 "VpcId" : { "Ref" : "VPC" },
-                "CidrBlock" : "10.101.0.0/24",
+                "CidrBlock" : "10.100.0.0/24",
                 "MapPublicIpOnLaunch": true,
                 "Tags" : [ {"Key" : "Application", "Value" : { "Ref" : "AWS::StackId"} }, {"Key" : "Name", "Value" : { "Ref" : "AWS::StackName"} } ]
             }
