@@ -1,13 +1,14 @@
-$MyPublicIP = (Invoke-RestMethod -Method Get -Uri 'https://api.ipify.org?format=json').IP
-Set-DefaultAWSRegion -Region ap-southeast-2
+function Get-Lab { 
+    [CmdletBinding()]
+    $LabCFNStacks = Get-CFNStack | Where-Object { $_.Tags | Where-Object { $_.Key -eq 'Function' -and $_.Value -eq 'Lab'}} 
+
+    return $LabCFNStacks | Sort-Object -Property CreationTime | Format-table CreationTime,StackName,StackStatus
+}
 
 function Start-Lab { 
     [CmdletBinding()]
-    Param 
-    (
-        [string]$MyPublicIP=$MyPublicIP,
-        [string]$KeyPairName=$KeyPairName
-    )
+
+    $MyPublicIP = (Invoke-RestMethod -Method Get -Uri 'https://api.ipify.org?format=json').IP
 
     # Get the Lab Stacks 
     $LabCFNStacks = Get-CFNStack | Where-Object { $_.Tags | Where-Object { $_.Key -eq 'Function' -and $_.Value -eq 'Lab'}} 
@@ -25,6 +26,7 @@ function Start-Lab {
 }
 
 function Stop-Lab { 
+    [CmdletBinding()]
     
     # Get the Lab Stacks 
     $LabCFNStacks = Get-CFNStack | Where-Object { $_.Tags | Where-Object { $_.Key -eq 'Function' -and $_.Value -eq 'Lab'}} 
@@ -46,12 +48,10 @@ function New-Lab {
     [CmdletBinding()]
     Param 
     (
-        [Parameter(Mandatory=$true)][string]$LabName,
-        [string]$MyPublicIP=$MyPublicIP,
-        [string]$KeyPairName=$KeyPairName
+        [Parameter(Mandatory=$true)][string]$LabName
     )
 
-
+    $MyPublicIP = (Invoke-RestMethod -Method Get -Uri 'https://api.ipify.org?format=json').IP
     $NewLab = New-CFNStack -StackName $LabName `
              -TemplateURL https://s3-ap-southeast-2.amazonaws.com/labformation/LabFormation.cform `
              -Parameter @( @{ ParameterKey="ClientIP"; ParameterValue="$($MyPublicIP)/32" } )`
@@ -59,8 +59,19 @@ function New-Lab {
     return $NewLab
 }
 
-function Get-Lab { 
-    $LabCFNStacks = Get-CFNStack | Where-Object { $_.Tags | Where-Object { $_.Key -eq 'Function' -and $_.Value -eq 'Lab'}} 
 
-    return $LabCFNStacks | Sort-Object -Property CreationTime | Format-table CreationTime,StackName,StackStatus
+function Remove-lab { 
+    [CmdletBinding()]
+    Param 
+    (
+        [Parameter(Mandatory=$true)][string]$LabName
+    )
+    $LabSearch = Get-CFNStack | Where-Object { $_.Tags | Where-Object { $_.Key -eq 'Function' -and $_.Value -eq 'Lab'} -and $_.Name -eq $LabName}
+    if ( $LabSearch ) { 
+        $LabRemove = Remove-CFNStack -Name $Labname
+    } 
+    else {
+        Write-error "Couldn't find a lab with the name $($LabName)" -ErrorAction Stop
+    }
+    return "Lab Removed: $($LabName)"
 }
