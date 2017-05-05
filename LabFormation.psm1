@@ -12,19 +12,23 @@ function Start-Lab {
 
     # Get the Lab Stacks 
     $LabCFNStacks = Get-CFNStack | Where-Object { $_.Tags | Where-Object { $_.Key -eq 'Function' -and $_.Value -eq 'Lab'}} 
-    $ReturnObject = NEw-Object System.Collections.ArrayList
-
+    
+    $AllInstances = New-Object System.Collections.ArrayList
+    
     Foreach ( $LabCFNStack in $LabCFNStacks ) { 
         $LabInstances = Get-EC2Instance -Filter @( @{name='vpc-id'; values = @( ($($LabCFNStack.Outputs | Where-Object { $_.OutputKey -eq 'VPCId'})).OutputValue) }, @{name='instance-state-code'; values = @(0,32,48,64,80)} )
         if ( $LabInstances ) {
-            $Instance =  Start-EC2Instance $LabInstances
-            $ReturnObject | Add-member -MemberType NoteProperty -name Instances -value @($($LabInstances ))
+            $Instance =  Start-EC2Instance @( $($LabInstances.Instances.InstanceId))
+
+            Start-Sleep -Seconds 10
+            #Refresh the Lab list so that we can get the public IP
+            $LabInstances = Get-EC2Instance -Filter @( @{name='vpc-id'; values = @( ($($LabCFNStack.Outputs | Where-Object { $_.OutputKey -eq 'VPCId'})).OutputValue) } )
+            [void]$AllInstances.AddRange( @($($LabInstances.Instances )))
         }
+        $StackUpdate = Update-CFNStack -StackName $LabCFNStack.StackName -Parameter @( @{ ParameterKey="ClientIP"; ParameterValue="$($MyPublicIP)/32" } ) -TemplateURL https://s3-ap-southeast-2.amazonaws.com/labformation/LabFormation.cform 
     }
     
-    $SecGroupUpdate = $LAbCFNStacks | Update-CFNStack -Parameter @( @{ ParameterKey="ClientIP"; ParameterValue="$($MyPublicIP)/32" } ) -TemplateURL https://s3-ap-southeast-2.amazonaws.com/labformation/LabFormation.cform 
-    
-    return $ReturnObject 
+    return $AllInstances | Select-Object @{Name="Name";Expression={ ($_.Tags | Where-Object { $_.Key -eq "Name"}).Value }},@{Name="State";Expression={ $_.State.Name }},InstanceId,VPCId,PublicIpAddress,PrivateIpAddress
 }
 
 function Stop-Lab { 
@@ -37,7 +41,7 @@ function Stop-Lab {
         $LabInstances = Get-EC2Instance -Filter @( @{name='vpc-id'; values = @( ($($LabCFNStack.Outputs | Where-Object { $_.OutputKey -eq 'VPCId'})).OutputValue) } 
         , @{name='instance-state-code'; values = @(16)} ) 
         if ( $LabInstances ) {
-            Stop-EC2Instance $LabInstances
+            $InstanceStop = Stop-EC2Instance @( $($LabInstances.Instances.InstanceId))
         }
     }
 
@@ -70,7 +74,7 @@ function Remove-lab {
     )
     $LabSearch = Get-CFNStack | Where-Object {  $_.Tags | Where-Object { $_.Key -eq 'Function' -and $_.Value -eq 'Lab'} } | Where-Object { $_.StackName -eq "$($LabName)"}
     if ( $LabSearch ) { 
-        $LabRemove = Remove-CFNStack -Name $Labname
+        $LabRemove = Remove-CFNStack -StackName $Labname
     } 
     else {
         Write-error "Couldn't find a lab with the name $($LabName)" -ErrorAction Stop
