@@ -2,7 +2,7 @@ function Get-Lab {
     [CmdletBinding()]
     $LabCFNStacks = Get-CFNStack | Where-Object { $_.Tags | Where-Object { $_.Key -eq 'Function' -and $_.Value -eq 'Lab'}} 
 
-    return $LabCFNStacks | Sort-Object -Property CreationTime | Format-table CreationTime,StackName,StackStatus@{Name="LabState";Expression={ ($_.Tags | Where-Object { $_.Key -eq "LabState"}).Value }}
+    return $LabCFNStacks | Sort-Object -Property CreationTime | Format-table CreationTime,StackName,StackStatus,@{Name="LabState";Expression={ ($_.Tags | Where-Object { $_.Key -eq "LabState"}).Value }}
 }
 
 function Start-Lab { 
